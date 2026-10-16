@@ -1,0 +1,148 @@
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local ToggleBtn = Instance.new("TextButton")
+local FOVSlider = Instance.new("TextBox")
+local MinMaxBtn = Instance.new("TextButton")
+
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
+
+MainFrame.Name = "AntiFreezeHub"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+MainFrame.BorderSizePixel = 2
+MainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+MainFrame.Position = UDim2.new(0.5, -100, 0.5, -60)
+MainFrame.Size = UDim2.new(0, 200, 0, 120)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+Title.Name = "Title"
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Title.BorderSizePixel = 0
+Title.Size = UDim2.new(0, 160, 0, 30)
+Title.Font = Enum.Font.SourceSansBold
+Title.Text = "Ammar_extra"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 18.000
+
+MinMaxBtn.Name = "MinMaxBtn"
+MinMaxBtn.Parent = MainFrame
+MinMaxBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MinMaxBtn.BorderSizePixel = 0
+MinMaxBtn.Position = UDim2.new(0, 160, 0, 0)
+MinMaxBtn.Size = UDim2.new(0, 40, 0, 30)
+MinMaxBtn.Font = Enum.Font.SourceSansBold
+MinMaxBtn.Text = "-"
+MinMaxBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinMaxBtn.TextSize = 18.000
+
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Parent = MainFrame
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ToggleBtn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Position = UDim2.new(0.1, 0, 0.35, 0)
+ToggleBtn.Size = UDim2.new(0.8, 0, 0, 30)
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.Text = "Head Lock: OFF"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+ToggleBtn.TextSize = 16.000
+
+FOVSlider.Name = "FOVSlider"
+FOVSlider.Parent = MainFrame
+FOVSlider.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+FOVSlider.BorderColor3 = Color3.fromRGB(255, 255, 255)
+FOVSlider.Position = UDim2.new(0.1, 0, 0.68, 0)
+FOVSlider.Size = UDim2.new(0.8, 0, 0, 25)
+FOVSlider.Font = Enum.Font.SourceSans
+FOVSlider.PlaceholderText = "FOV Radius (30-999)"
+FOVSlider.Text = "300"
+FOVSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+FOVSlider.TextSize = 14.000
+
+local Camera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local lockEnabled = false
+local fovRadius = 300
+local isMinimized = false
+
+FOVSlider.FocusLost:Connect(function()
+    local num = tonumber(FOVSlider.Text)
+    if num then
+        fovRadius = math.clamp(num, 30, 999)
+        FOVSlider.Text = tostring(fovRadius)
+    else
+        FOVSlider.Text = tostring(fovRadius)
+    end
+end)
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    lockEnabled = not lockEnabled
+    if lockEnabled then
+        ToggleBtn.Text = "Head Lock: ON"
+        ToggleBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+    else
+        ToggleBtn.Text = "Head Lock: OFF"
+        ToggleBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+    end
+end)
+
+MinMaxBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        ToggleBtn.Visible = false
+        FOVSlider.Visible = false
+        MainFrame.Size = UDim2.new(0, 200, 0, 30)
+        MinMaxBtn.Text = "+"
+    else
+        ToggleBtn.Visible = true
+        FOVSlider.Visible = true
+        MainFrame.Size = UDim2.new(0, 200, 0, 120)
+        MinMaxBtn.Text = "-"
+    end
+end)
+
+local function getClosestPlayer()
+    local closestTarget = nil
+    local maxDistance = fovRadius
+    local mousePosition = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            
+            if head and humanoid and humanoid.Health > 0 then
+                if player.Team ~= LocalPlayer.Team or player.Team == nil then
+                    local screenPosition, onScreen = Camera:WorldToViewportPoint(head.Position)
+                    
+                    if onScreen then
+                        local targetDistance = (Vector2.new(screenPosition.X, screenPosition.Y) - mousePosition).Magnitude
+                        if targetDistance < maxDistance then
+                            maxDistance = targetDistance
+                            closestTarget = head
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+RunService.RenderStepped:Connect(function()
+    local hue = tick() % 5 / 5
+    Title.TextColor3 = Color3.fromHSV(hue, 1, 1)
+
+    if lockEnabled then
+        local target = getClosestPlayer()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+        end
+    end
+end)
